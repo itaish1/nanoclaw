@@ -65,59 +65,59 @@ export async function getContainerStats(): Promise<Map<string, ContainerStats>> 
   const result = new Map<string, ContainerStats>();
 
   try {
-    // Get running containers with stats
-    const { stdout: statsOut } = await execFileAsync('docker', [
-      'stats',
-      '--no-stream',
-      '--format',
-      '{{json .}}',
-      '--filter',
-      'name=nanoclaw-v2-',
+    // Get all nanoclaw containers (running + stopped)
+    const { stdout: psOut } = await execFileAsync('docker', [
+      'ps', '-a',
+      '--format', '{{json .}}',
+      '--filter', 'name=nanoclaw-v2-',
     ]);
 
+    const psRows: DockerPsLine[] = [];
+    for (const line of psOut.trim().split('\n').filter(Boolean)) {
+      try { psRows.push(JSON.parse(line) as DockerPsLine); } catch { /* skip */ }
+    }
+
+    // Collect names of running containers for stats lookup
+    const runningNames = psRows.filter((r) => r.Status.startsWith('Up')).map((r) => r.Names);
+
+    // docker stats requires explicit container names — no --filter support
     const statsMap = new Map<string, DockerStatsLine>();
-    for (const line of statsOut.trim().split('\n').filter(Boolean)) {
-      try {
-        const row = JSON.parse(line) as DockerStatsLine;
-        statsMap.set(row.Name, row);
-      } catch {
-        // malformed line
+    if (runningNames.length > 0) {
+      const { stdout: statsOut } = await execFileAsync('docker', [
+        'stats', '--no-stream', '--format', '{{json .}}',
+        ...runningNames,
+      ]);
+      for (const line of statsOut.trim().split('\n').filter(Boolean)) {
+        try {
+          const row = JSON.parse(line) as DockerStatsLine;
+          statsMap.set(row.Name, row);
+        } catch { /* skip */ }
       }
     }
 
-    // Get container status + uptime
-    const { stdout: psOut } = await execFileAsync('docker', [
-      'ps',
-      '-a',
-      '--format',
-      '{{json .}}',
-      '--filter',
-      'name=nanoclaw-v2-',
-    ]);
+    for (const row of psRows) {
+      const folder = extractFolder(row.Names);
+      if (!folder) continue;
 
-    for (const line of psOut.trim().split('\n').filter(Boolean)) {
-      try {
-        const row = JSON.parse(line) as DockerPsLine;
-        const folder = extractFolder(row.Names);
-        if (!folder) continue;
+      const isRunning = row.Status.startsWith('Up');
+      const stats = statsMap.get(row.Names);
+      const mem = stats ? parseMem(stats.MemUsage) : null;
+      const cpu = stats ? parseFloat(stats.CPUPerc.replace('%', '')) : null;
 
-        const isRunning = row.Status.startsWith('Up');
-        const stats = statsMap.get(row.Names);
-        const mem = stats ? parseMem(stats.MemUsage) : null;
-        const cpu = stats ? parseFloat(stats.CPUPerc.replace('%', '')) : null;
+      // Keep highest-uptime container per folder (latest wins)
+      const existing = result.get(folder);
+      const uptimeSec = isRunning ? parseUptime(row.Status) : null;
+      if (existing?.status === 'running' && !isRunning) continue;
 
-        result.set(folder, {
-          folder,
-          name: row.Names,
-          status: isRunning ? 'running' : 'stopped',
-          uptimeSeconds: isRunning ? parseUptime(row.Status) : null,
-          ramUsedMb: mem?.used ?? null,
-          ramTotalMb: mem?.total ?? null,
-          cpuPercent: isNaN(cpu!) ? null : cpu,
-        });
-      } catch {
-        // malformed line
-      }
+      result.set(folder, {
+        folder,
+        name: row.Names,
+        status: isRunning ? 'running' : 'stopped',
+        uptimeSeconds: uptimeSec,
+        ramUsedMb: mem?.used ?? null,
+        ramTotalMb: mem?.total ?? null,
+        cpuPercent: cpu !== null && !isNaN(cpu) ? cpu : null,
+      });
     }
   } catch {
     // Docker not available or no containers — return empty map
