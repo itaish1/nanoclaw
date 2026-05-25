@@ -2,9 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { TopologyView } from './components/TopologyView';
 import { AgentPanel } from './components/AgentPanel';
+import { OneCLITab } from './components/OneCLITab';
+import { CreditsTab } from './components/CreditsTab';
 import { fetchTopology, fetchStats } from './api';
 import type { TopologyData, StatsResponse } from './types';
 import './App.css';
+
+type Tab = 'topology' | 'onecli' | 'credits';
 
 const TOPOLOGY_REFRESH_MS = 15_000;
 const STATS_REFRESH_MS = 5_000;
@@ -14,6 +18,7 @@ function fmtMb(mb: number): string {
 }
 
 export function App() {
+  const [tab, setTab] = useState<Tab>('topology');
   const [data, setData] = useState<TopologyData | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +43,6 @@ export function App() {
     try {
       const s = await fetchStats();
       setStats(s);
-      // Merge live container stats into topology agents
       setData((prev) => {
         if (!prev) return prev;
         const byFolder = new Map(s.containers.map((c) => [c.folder, c]));
@@ -56,9 +60,7 @@ export function App() {
           }),
         };
       });
-    } catch {
-      // stats are best-effort, don't surface errors
-    }
+    } catch { /* stats are best-effort */ }
   }, []);
 
   useEffect(() => {
@@ -74,9 +76,6 @@ export function App() {
   }, [loadStats]);
 
   const runningCount = stats?.totals.running ?? data?.agents.filter((a) => a.container?.status === 'running').length ?? 0;
-  const totalAgents = data?.agents.length ?? 0;
-  const totalChannels = data?.messagingGroups.length ?? 0;
-  const totalWirings = data?.wirings.length ?? 0;
   const totalRam = stats?.totals.ramUsedMb ?? 0;
   const totalCpu = stats?.totals.cpuPercent ?? 0;
 
@@ -89,31 +88,41 @@ export function App() {
           <span className="subtitle">Dashboard</span>
         </div>
 
-        <div className="stats-pills">
-          <div className="pill">
-            <span className="pill-dot" style={{ background: runningCount > 0 ? '#22C55E' : '#6B7280' }} />
-            <span>{runningCount} running</span>
-          </div>
-          <div className="pill">⬡ {totalAgents} agents</div>
-          <div className="pill">⇄ {totalChannels} channels</div>
-          <div className="pill">↔ {totalWirings} wirings</div>
-          {totalRam > 0 && (
-            <div className="pill pill-resource">
-              <span style={{ color: '#94A3B8' }}>RAM</span>
-              <span style={{ color: '#34D399', fontFamily: 'monospace' }}>{fmtMb(totalRam)}</span>
-            </div>
-          )}
-          {totalCpu > 0 && (
-            <div className="pill pill-resource">
-              <span style={{ color: '#94A3B8' }}>CPU</span>
-              <span style={{ color: totalCpu > 80 ? '#F87171' : '#FBBF24', fontFamily: 'monospace' }}>
-                {totalCpu.toFixed(1)}%
-              </span>
-            </div>
-          )}
-        </div>
+        <nav className="tabs">
+          {(['topology', 'onecli', 'credits'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              className={`tab-btn ${tab === t ? 'active' : ''}`}
+              onClick={() => setTab(t)}
+            >
+              {t === 'topology' && '⬡ Topology'}
+              {t === 'onecli' && '🔑 OneCLI'}
+              {t === 'credits' && '💳 Credits'}
+            </button>
+          ))}
+        </nav>
 
         <div className="topbar-right">
+          <div className="stats-pills">
+            <div className="pill">
+              <span className="pill-dot" style={{ background: runningCount > 0 ? '#22C55E' : '#6B7280' }} />
+              <span>{runningCount} running</span>
+            </div>
+            {totalRam > 0 && (
+              <div className="pill pill-resource">
+                <span style={{ color: '#94A3B8' }}>RAM</span>
+                <span style={{ color: '#34D399', fontFamily: 'monospace' }}>{fmtMb(totalRam)}</span>
+              </div>
+            )}
+            {totalCpu > 0 && (
+              <div className="pill pill-resource">
+                <span style={{ color: '#94A3B8' }}>CPU</span>
+                <span style={{ color: totalCpu > 80 ? '#F87171' : '#FBBF24', fontFamily: 'monospace' }}>
+                  {totalCpu.toFixed(1)}%
+                </span>
+              </div>
+            )}
+          </div>
           {lastUpdated && (
             <span className="updated">Updated {lastUpdated.toLocaleTimeString()}</span>
           )}
@@ -123,35 +132,42 @@ export function App() {
 
       <div className="body">
         <main className="main">
-          {loading && !data && (
-            <div className="center-msg">
-              <div className="spinner" />
-              <p>Connecting to NanoClaw…</p>
+          {tab === 'topology' && (
+            <>
+              {loading && !data && (
+                <div className="center-msg"><div className="spinner" /><p>Connecting to NanoClaw…</p></div>
+              )}
+              {error && (
+                <div className="center-msg error">
+                  <p>⚠ {error}</p>
+                  <button className="refresh-btn" onClick={loadTopology}>Retry</button>
+                </div>
+              )}
+              {data && (
+                data.agents.length === 0 && data.messagingGroups.length === 0 ? (
+                  <div className="center-msg">
+                    <p style={{ color: '#94A3B8' }}>No agents or channels configured yet.</p>
+                    <p style={{ color: '#64748B', fontSize: 13 }}>Run <code>/setup</code> to get started.</p>
+                  </div>
+                ) : (
+                  <ReactFlowProvider>
+                    <TopologyView data={data} onSelectAgent={setSelectedAgentId} />
+                  </ReactFlowProvider>
+                )
+              )}
+            </>
+          )}
+
+          {tab === 'onecli' && (
+            <div style={{ height: '100%', overflowY: 'auto' }}>
+              <OneCLITab nanoclaWAgents={data?.agents ?? []} />
             </div>
           )}
-          {error && (
-            <div className="center-msg error">
-              <p>⚠ {error}</p>
-              <button className="refresh-btn" onClick={loadTopology}>Retry</button>
-            </div>
-          )}
-          {data && (
-            data.agents.length === 0 && data.messagingGroups.length === 0 ? (
-              <div className="center-msg">
-                <p style={{ color: '#94A3B8' }}>No agents or channels configured yet.</p>
-                <p style={{ color: '#64748B', fontSize: 13 }}>
-                  Run <code>/setup</code> or <code>/init-first-agent</code> to get started.
-                </p>
-              </div>
-            ) : (
-              <ReactFlowProvider>
-                <TopologyView data={data} onSelectAgent={setSelectedAgentId} />
-              </ReactFlowProvider>
-            )
-          )}
+
+          {tab === 'credits' && <CreditsTab />}
         </main>
 
-        {selectedAgentId && (
+        {tab === 'topology' && selectedAgentId && (
           <AgentPanel
             agentId={selectedAgentId}
             onClose={() => setSelectedAgentId(null)}

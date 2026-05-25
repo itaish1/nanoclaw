@@ -174,6 +174,41 @@ app.post('/api/agents/:id/restart', async (req, res) => {
   }
 });
 
+// OneCLI proxy — strips accessToken before forwarding to client
+const ONECLI_BASE = 'http://127.0.0.1:10254';
+
+app.get('/api/onecli/agents', async (_req, res) => {
+  try {
+    const r = await fetch(`${ONECLI_BASE}/api/agents`);
+    if (!r.ok) { res.status(r.status).json({ error: 'OneCLI unavailable' }); return; }
+    const agents = await r.json() as Record<string, unknown>[];
+    // fetch per-agent secrets in parallel
+    const withSecrets = await Promise.all(
+      agents.map(async (a) => {
+        const { accessToken: _, ...safe } = a as Record<string, unknown> & { accessToken?: unknown };
+        try {
+          const sr = await fetch(`${ONECLI_BASE}/api/agents/${a.id}/secrets`);
+          safe.secretIds = sr.ok ? await sr.json() : [];
+        } catch { safe.secretIds = []; }
+        return safe;
+      }),
+    );
+    res.json(withSecrets);
+  } catch {
+    res.status(503).json({ error: 'OneCLI not running' });
+  }
+});
+
+app.get('/api/onecli/secrets', async (_req, res) => {
+  try {
+    const r = await fetch(`${ONECLI_BASE}/api/secrets`);
+    if (!r.ok) { res.status(r.status).json({ error: 'OneCLI unavailable' }); return; }
+    res.json(await r.json());
+  } catch {
+    res.status(503).json({ error: 'OneCLI not running' });
+  }
+});
+
 function parseJson<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback;
   try { return JSON.parse(raw) as T; } catch { return fallback; }
