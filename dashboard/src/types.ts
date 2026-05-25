@@ -76,5 +76,19 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   'claude-haiku-4-5':           { label: 'Claude Haiku 4.5',  inputPer1M: 0.8,  outputPer1M: 4,   ctInputPer1M: 0.08 },
 };
 
+export interface ContainerStatEntry {
+  folder: string;
+  status: 'running' | 'stopped';
+  ramUsedMb: number | null;
+  ramTotalMb: number | null;
+  cpuPercent: number | null;
+  uptimeSeconds: number | null;
+}
+
+export interface StatsResponse {
+  containers: ContainerStatEntry[];
+  totals: { running: number; ramUsedMb: number; cpuPercent: number };
+}
+
 export const KNOWN_MODELS = Object.keys(MODEL_PRICING);
 export const EFFORT_OPTIONS = ['auto', 'low', 'medium', 'high'] as const;

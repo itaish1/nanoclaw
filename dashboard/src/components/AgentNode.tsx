@@ -68,31 +68,37 @@ export function AgentNode({ data }: NodeProps) {
         </span>
       </div>
 
-      {agent.container?.ramUsedMb != null && (
-        <div style={styles.statBlock}>
-          <div style={styles.statRow}>
-            <span style={styles.label}>RAM</span>
-            <span style={styles.value}>
-              {Math.round(agent.container.ramUsedMb)}M
-              {agent.container.ramTotalMb
-                ? ` / ${agent.container.ramTotalMb >= 1024
-                    ? `${(agent.container.ramTotalMb / 1024).toFixed(1)}G`
-                    : `${Math.round(agent.container.ramTotalMb)}M`}`
-                : ''}
-            </span>
-            {agent.container?.cpuPercent != null && (
-              <span style={{ ...styles.label, marginLeft: 'auto' }}>
-                CPU {agent.container.cpuPercent.toFixed(1)}%
+      <div style={styles.statBlock}>
+        {agent.container?.ramUsedMb != null ? (
+          <>
+            <div style={styles.statRow}>
+              <span style={styles.label}>RAM</span>
+              <span style={styles.value}>
+                {Math.round(agent.container.ramUsedMb)}M
+                {agent.container.ramTotalMb
+                  ? ` / ${agent.container.ramTotalMb >= 1024
+                      ? `${(agent.container.ramTotalMb / 1024).toFixed(1)}G`
+                      : `${Math.round(agent.container.ramTotalMb)}M`}`
+                  : ''}
               </span>
-            )}
-          </div>
-          {ramPct !== null && (
-            <div style={styles.barTrack}>
-              <div style={{ ...styles.barFill, width: `${Math.min(ramPct, 100)}%` }} />
+              {agent.container?.cpuPercent != null && (
+                <span style={{ ...styles.label, marginLeft: 'auto', color: agent.container.cpuPercent > 80 ? '#F87171' : '#64748B' }}>
+                  CPU {agent.container.cpuPercent.toFixed(1)}%
+                </span>
+              )}
             </div>
-          )}
-        </div>
-      )}
+            {ramPct !== null && (
+              <div style={styles.barTrack}>
+                <div style={{ ...styles.barFill, width: `${Math.min(ramPct, 100)}%`, background: ramPct > 80 ? '#F59E0B' : '#22C55E' }} />
+              </div>
+            )}
+          </>
+        ) : isRunning ? (
+          <div style={{ ...styles.label, fontStyle: 'italic' }}>fetching stats…</div>
+        ) : (
+          <div style={styles.barTrack} />
+        )}
+      </div>
 
       {agent.sessionCount > 0 && (
         <div style={styles.badge}>

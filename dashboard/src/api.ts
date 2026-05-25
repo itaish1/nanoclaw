@@ -32,6 +32,12 @@ export async function saveAgentConfig(id: string, updates: {
   }
 }
 
+export async function fetchStats(): Promise<import('./types').StatsResponse> {
+  const res = await fetch('/api/stats');
+  if (!res.ok) throw new Error('Failed to fetch stats');
+  return res.json();
+}
+
 export async function restartAgent(id: string): Promise<{ stopped: string[] }> {
   const res = await fetch(`/api/agents/${id}/restart`, { method: 'POST' });
   if (!res.ok) {

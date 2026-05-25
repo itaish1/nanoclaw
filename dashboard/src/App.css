@@ -38,6 +38,7 @@ body {
   padding: 4px 10px; border-radius: 99px;
 }
 .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+.pill-resource { gap: 6px; border-color: #1E3A2F; background: #0D1F1A; }
 
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .updated { font-size: 11px; color: #475569; }

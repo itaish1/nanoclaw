@@ -74,6 +74,27 @@ app.get('/api/topology', async (_req, res) => {
   });
 });
 
+app.get('/api/stats', async (_req, res) => {
+  const containerStats = await getContainerStats();
+  const containers = [...containerStats.values()];
+  const running = containers.filter((c) => c.status === 'running');
+  res.json({
+    containers: containers.map((c) => ({
+      folder: c.folder,
+      status: c.status,
+      ramUsedMb: c.ramUsedMb,
+      ramTotalMb: c.ramTotalMb,
+      cpuPercent: c.cpuPercent,
+      uptimeSeconds: c.uptimeSeconds,
+    })),
+    totals: {
+      running: running.length,
+      ramUsedMb: running.reduce((s, c) => s + (c.ramUsedMb ?? 0), 0),
+      cpuPercent: running.reduce((s, c) => s + (c.cpuPercent ?? 0), 0),
+    },
+  });
+});
+
 app.get('/api/agents/:id', async (req, res) => {
   if (!requireDb(res)) return;
   const agent = getAgentById(req.params.id);
