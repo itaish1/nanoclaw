@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { TopologyView } from './components/TopologyView';
+import { AgentPanel } from './components/AgentPanel';
 import { fetchTopology } from './api';
 import type { TopologyData } from './types';
 import './App.css';
@@ -12,6 +13,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -67,46 +69,52 @@ export function App() {
 
         <div className="topbar-right">
           {lastUpdated && (
-            <span className="updated">
-              Updated {lastUpdated.toLocaleTimeString()}
-            </span>
+            <span className="updated">Updated {lastUpdated.toLocaleTimeString()}</span>
           )}
-          <button className="refresh-btn" onClick={load} title="Refresh">
-            ↻
-          </button>
+          <button className="refresh-btn" onClick={load} title="Refresh">↻</button>
         </div>
       </header>
 
-      <main className="main">
-        {loading && !data && (
-          <div className="center-msg">
-            <div className="spinner" />
-            <p>Connecting to NanoClaw…</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="center-msg error">
-            <p>⚠ {error}</p>
-            <button className="refresh-btn" onClick={load}>Retry</button>
-          </div>
-        )}
-
-        {data && (
-          data.agents.length === 0 && data.messagingGroups.length === 0 ? (
+      <div className="body">
+        <main className="main">
+          {loading && !data && (
             <div className="center-msg">
-              <p style={{ color: '#94A3B8' }}>No agents or channels configured yet.</p>
-              <p style={{ color: '#64748B', fontSize: 13 }}>
-                Run <code>/setup</code> or <code>/init-first-agent</code> to get started.
-              </p>
+              <div className="spinner" />
+              <p>Connecting to NanoClaw…</p>
             </div>
-          ) : (
-            <ReactFlowProvider>
-              <TopologyView data={data} />
-            </ReactFlowProvider>
-          )
+          )}
+
+          {error && (
+            <div className="center-msg error">
+              <p>⚠ {error}</p>
+              <button className="refresh-btn" onClick={load}>Retry</button>
+            </div>
+          )}
+
+          {data && (
+            data.agents.length === 0 && data.messagingGroups.length === 0 ? (
+              <div className="center-msg">
+                <p style={{ color: '#94A3B8' }}>No agents or channels configured yet.</p>
+                <p style={{ color: '#64748B', fontSize: 13 }}>
+                  Run <code>/setup</code> or <code>/init-first-agent</code> to get started.
+                </p>
+              </div>
+            ) : (
+              <ReactFlowProvider>
+                <TopologyView data={data} onSelectAgent={setSelectedAgentId} />
+              </ReactFlowProvider>
+            )
+          )}
+        </main>
+
+        {selectedAgentId && (
+          <AgentPanel
+            agentId={selectedAgentId}
+            onClose={() => setSelectedAgentId(null)}
+            onSaved={load}
+          />
         )}
-      </main>
+      </div>
     </div>
   );
 }

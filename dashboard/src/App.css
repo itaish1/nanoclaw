@@ -50,7 +50,8 @@ body {
 }
 .refresh-btn:hover { background: #2D2D45; color: #E2E8F0; }
 
-/* Main */
+/* Body + Main */
+.body { flex: 1; min-height: 0; display: flex; }
 .main { flex: 1; min-height: 0; }
 
 .center-msg {

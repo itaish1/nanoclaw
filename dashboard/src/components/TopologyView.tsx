@@ -19,7 +19,7 @@ const CHANNEL_X = 60;
 const ROW_H = 220;
 const CHANNEL_ROW_H = 100;
 
-export function TopologyView({ data }: { data: TopologyData }) {
+export function TopologyView({ data, onSelectAgent }: { data: TopologyData; onSelectAgent: (id: string) => void }) {
   const { nodes, edges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -30,7 +30,7 @@ export function TopologyView({ data }: { data: TopologyData }) {
         id: `agent-${agent.id}`,
         type: 'agent',
         position: { x: AGENT_X, y: i * ROW_H + 40 },
-        data: agent as unknown as AgentNodeData,
+        data: { ...agent, onSelect: onSelectAgent } as unknown as AgentNodeData,
       });
     });
 

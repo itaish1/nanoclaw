@@ -24,7 +24,7 @@ function modelLabel(model: string | null, provider: string): string {
   return provider === 'opencode' ? 'opencode' : 'claude (default)';
 }
 
-export type AgentNodeData = AgentInfo & { [key: string]: unknown };
+export type AgentNodeData = AgentInfo & { onSelect?: (id: string) => void; [key: string]: unknown };
 
 export function AgentNode({ data }: NodeProps) {
   const agent = data as AgentNodeData;
@@ -36,7 +36,7 @@ export function AgentNode({ data }: NodeProps) {
       : null;
 
   return (
-    <div style={styles.card}>
+    <div style={{ ...styles.card, cursor: 'pointer' }} onClick={() => agent.onSelect?.(agent.id)}>
       <Handle type="target" position={Position.Left} style={styles.handle} />
 
       <div style={styles.header}>
