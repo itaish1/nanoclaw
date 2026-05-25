@@ -153,19 +153,19 @@ export function getSessionStats(agentGroupId: string): SessionStats[] {
 
 export function updateAgentConfig(agentGroupId: string, updates: AgentConfigUpdate): void {
   const fields: string[] = [];
-  const values: Record<string, unknown> = { $id: agentGroupId };
+  const values: Record<string, unknown> = { id: agentGroupId };
 
-  if ('model' in updates) { fields.push('model = $model'); values.$model = updates.model ?? null; }
-  if ('effort' in updates) { fields.push('effort = $effort'); values.$effort = updates.effort ?? null; }
-  if ('assistant_name' in updates) { fields.push('assistant_name = $assistant_name'); values.$assistant_name = updates.assistant_name ?? null; }
-  if ('max_messages_per_prompt' in updates) { fields.push('max_messages_per_prompt = $max_messages_per_prompt'); values.$max_messages_per_prompt = updates.max_messages_per_prompt ?? null; }
+  if ('model' in updates) { fields.push('model = @model'); values.model = updates.model ?? null; }
+  if ('effort' in updates) { fields.push('effort = @effort'); values.effort = updates.effort ?? null; }
+  if ('assistant_name' in updates) { fields.push('assistant_name = @assistant_name'); values.assistant_name = updates.assistant_name ?? null; }
+  if ('max_messages_per_prompt' in updates) { fields.push('max_messages_per_prompt = @max_messages_per_prompt'); values.max_messages_per_prompt = updates.max_messages_per_prompt ?? null; }
 
   if (fields.length === 0) return;
-  fields.push(`updated_at = $updated_at`);
-  values.$updated_at = new Date().toISOString();
+  fields.push('updated_at = @updated_at');
+  values.updated_at = new Date().toISOString();
 
   getDb()
-    .prepare(`UPDATE container_configs SET ${fields.join(', ')} WHERE agent_group_id = $id`)
+    .prepare(`UPDATE container_configs SET ${fields.join(', ')} WHERE agent_group_id = @id`)
     .run(values);
 }
 
